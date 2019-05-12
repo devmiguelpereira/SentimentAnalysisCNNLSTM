@@ -125,6 +125,56 @@ def main():
         net.add(gluon.nn.Dense(FULLY_CONNECTED, activation='relu'))
         net.add(gluon.nn.Dropout(DROPOUT_RATE))
         net.add(gluon.nn.Dense(NUM_OUTPUTS))
+    print(net)
+
+    hybridize = True  # for speed improvement, compile the network but no in-depth debugging possible
+    load_params = True  # Load pre-trained model
+
+
+    net.initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx)
+
+    if hybridize:
+        net.hybridize(static_alloc=True, static_shape=True)
+
+    softmax_cross_entropy = gluon.loss.SoftmaxCrossEntropyLoss()
+
+    trainer = gluon.Trainer(net.collect_params(), 'sgd',
+                            {'learning_rate': LEARNING_RATE,
+                             'wd': WDECAY,
+                             'momentum': MOMENTUM})
+
+    def evaluate_accuracy(data_iterator, net):
+        acc = mx.metric.Accuracy()
+        for i, (data, label) in enumerate(data_iterator):
+            data = data.as_in_context(ctx)
+            label = label.as_in_context(ctx)
+            output = net(data)
+            prediction = nd.argmax(output, axis=1)
+            acc.update(preds=prediction, labels=label)
+        return acc.get()[1]
+
+    start_epoch = 6
+    number_epochs = 7
+    smoothing_constant = .01
+    for e in range(start_epoch, number_epochs):
+        for i, (review, label) in enumerate(train_dataloader):
+            review = review.as_in_context(ctx)
+            label = label.as_in_context(ctx)
+            with autograd.record():
+                output = net(review)
+                loss = softmax_cross_entropy(output, label)
+            loss.backward()
+            trainer.step(review.shape[0])
+
+            # moving average of the loss
+            curr_loss = nd.mean(loss)
+            moving_loss = (curr_loss if (i == 0)
+                           else (1 - smoothing_constant) * moving_loss + (smoothing_constant) * curr_loss)
+
+            if (i % 200 == 0):
+                print('Batch {}: Instant loss {:.4f}, Moving loss {:.4f}'.format(i, curr_loss.asscalar(),
+                                                                                 moving_loss.asscalar()))
+
 
 if __name__ == "__main__":
     main()

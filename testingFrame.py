@@ -1,5 +1,4 @@
 def main():
-
     # installing  certain packages and libraries
 
     # pip install mxnet
@@ -22,10 +21,9 @@ def main():
     categories = ['Excellent', 'Very_good', 'Good', 'Average', 'Poor']
 
     # Load the data in memory
-    MAX_ITEMS_PER_CATEGORY = 25000
+    MAX_ITEMS_PER_CATEGORY = 2400
 
     # df = pd.read_csv('Average.csv', encoding='utf8')
-
 
     # Loading data from file if exist
     try:
@@ -67,7 +65,6 @@ def main():
     NUM_WORKERS = 0  # number of workers used in the data loading
     BATCH_SIZE = 128  # number of documents per batch
 
-
     def encode(text):
         encoded = np.zeros([len(ALPHABET), FEATURE_LEN], dtype='float32')
         review = text.lower()[:FEATURE_LEN - 1:-1]
@@ -79,7 +76,6 @@ def main():
                 encoded[ALPHABET_INDEX[letter]][i] = 1
             i += 1
         return encoded
-
 
     def transform(x, y):
         return encode(x), y
@@ -130,7 +126,6 @@ def main():
     hybridize = True  # for speed improvement, compile the network but no in-depth debugging possible
     load_params = True  # Load pre-trained model
 
-
     net.initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx)
 
     if hybridize:
@@ -174,6 +169,35 @@ def main():
             if (i % 200 == 0):
                 print('Batch {}: Instant loss {:.4f}, Moving loss {:.4f}'.format(i, curr_loss.asscalar(),
                                                                                  moving_loss.asscalar()))
+            net.export('crepe', epoch=number_epochs)
+
+            import random
+            for i in range(50):
+                index = random.randint(1, len(data))
+                review = data['X'][index]
+                label = categories[int(data['Y'][index])]
+                print(review)
+                print('\nCategory: {}\n'.format(label))
+                encoded = nd.array([encode(review)], ctx=ctx)
+                output = net(encoded)
+                predicted = categories[np.argmax(output[0].asnumpy())]
+                if predicted == label:
+                    print('Correct')
+                else:
+                    print('Incorrectly predicted {}'.format(predicted))
+
+                review_title = "Good stuff"
+                review = "This course is definitely better than the previous one"
+
+                print(review_title)
+                print(review + '\n')
+                encoded = nd.array([encode(review + " | " + review_title)], ctx=ctx)
+                output = net(encoded)
+                softmax = nd.exp(output) / nd.sum(nd.exp(output))[0]
+                predicted = categories[np.argmax(output[0].asnumpy())]
+                print('Predicted: {}\n'.format(predicted))
+                for i, val in enumerate(categories):
+                    print(val, float(int(softmax[0][i].asnumpy() * 1000) / 10), '%')
 
 
 if __name__ == "__main__":

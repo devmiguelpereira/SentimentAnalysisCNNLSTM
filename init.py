@@ -2,7 +2,6 @@ def main():
     # importing libraries
     import pandas as pd
     import mxnet as mx
-    import multiprocessing
     from mxnet import nd, autograd, gluon
     from mxnet.gluon.data import ArrayDataset
     from mxnet.gluon.data import DataLoader
@@ -16,7 +15,7 @@ def main():
     categories = ['Excellent', 'Very_good', 'Good', 'Average', 'Poor']
 
     # Load the data in memory
-    MAX_ITEMS_PER_CATEGORY = 200
+    MAX_ITEMS_PER_CATEGORY = 80000
 
     # Loading data from file if exist
     try:
@@ -174,7 +173,7 @@ def main():
         output = net(encoded)
         predicted = categories[np.argmax(output[0].asnumpy())]
         if predicted == label:
-            print('Correct')
+            print('Correctly predicted the right category')
         else:
             print('Incorrectly predicted {}'.format(predicted))
 
